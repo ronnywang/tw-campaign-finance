@@ -136,7 +136,7 @@ class Searcher
 
     public function getLinesFromPNG($file)
     {
-        $cmd = "./pic2linesjson " . escapeshellarg($file);
+        $cmd = escapeshellarg(__DIR__ . "/pic2linesjson") . ' ' . escapeshellarg($file);
         // 可以得到很多線段，但是要把線段組合在一起
         $json = json_decode(exec($cmd));
         $lines = $json->lines;
@@ -153,15 +153,20 @@ class Searcher
         // 分出接近垂直和水平線
         $horizons = $verticles = array();
         foreach ($this->line_groups as $line_group) {
-            if (-0.02 < $line_group->theta and $line_group->theta < 0.02) {
-                $horizons[] = $line_group;
-            } elseif (0.98 * pi() / 2 < abs($line_group->theta) and abs($line_group->theta) < 1.02 * pi() / 2) {
-                $verticles[] = $line_group;
+            // r = x * cos θ + y * sin θ
+            if (-0.10 < $line_group->theta and $line_group->theta < 0.10) {
+                $horizons[abs($line_group->r)] = $line_group;
+            } elseif (0.90 * pi() / 2 < abs($line_group->theta) and abs($line_group->theta) < 1.10 * pi() / 2) {
+                $verticles[abs($line_group->r)] = $line_group;
             } else {
                 print_r($line_group);
                 throw new Exception("有一條非垂直和水平的線");
             }
         }
+        ksort($horizons);
+        ksort($verticles);
+        $horizons = array_values($horizons);
+        $verticles = array_values($verticles);
 
         $filter = function($a){
             $obj = new StdClass;
