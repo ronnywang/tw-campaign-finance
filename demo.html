@@ -18,7 +18,7 @@ td {
 </ol>
 <div id="board" style="display: none; position: fixed; left: 10px; top: 10px; width: 800px; height: 600px; background-color: yellow">
     <table id="table" border="1" style="float: left"></table>
-    <img id="photo" width="400" height="300">
+    <canvas id="img_canvas" width="400" height="300"></canvas>
     <canvas id="canvas" width="400" height="400" style="position: relative; left: 400"></canvas>
 </div>
 <script>
@@ -58,7 +58,12 @@ $('#list').delegate('li', 'click', function(){
     img_data = new Image;
     img_data.src = data.url;
     img_data.onload = function(){
-        $('#photo').attr('src', data.url);
+        $('#img_canvas').css({
+            'background': 'url(' + data.url + ')',
+            'background-size': '400px 300px',
+            'width': '400px',
+            'height': '300px'
+        });
         $.get('outputs/' +id + '.json', function(ret){
             img_info = ret;
             $('#board').show();
@@ -84,6 +89,9 @@ $('#table').delegate('td', 'mouseover', function(){
    var x = $(this).data('x');
    var y = $(this).data('y');
 
+   $('#table td').css('background-color', '');
+   $(this).css('background-color', 'red');
+
    var lefttop = img_info.cross_points[x][y];
    var rightdown = img_info.cross_points[x + 1][y + 1];
    var source_width = parseInt(rightdown[1] - lefttop[1]);
@@ -91,6 +99,17 @@ $('#table').delegate('td', 'mouseover', function(){
    var target_width = (source_width > source_height) ? 400 : Math.floor(400 * source_width / source_height);
    var target_height = (source_height > source_width) ? 400 : Math.floor(400 * source_height / source_width);
 
+   var img_context = $('#img_canvas')[0].getContext('2d');
+   img_context.clearRect(0, 0, 400, 300);
+   img_context.beginPath();
+   img_context.strokeStyle = 'red';
+   img_context.rect(
+       Math.floor(lefttop[1] * 400 / img_info.width),
+       Math.floor(lefttop[0] * 300 / img_info.height),
+       Math.floor((rightdown[1] - lefttop[1]) * 400 / img_info.width),
+       Math.floor((rightdown[0] - lefttop[0]) * 300 / img_info.height)
+   );
+   img_context.stroke();
    $('#canvas')[0].getContext('2d').clearRect(0, 0, 400, 400);
    $('#canvas')[0].getContext('2d').drawImage(
        img_data,
