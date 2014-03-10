@@ -14,6 +14,9 @@ td {
 </style>
 </head>
 <body>
+<form id="input">
+    ID: <input type="text" name="text">
+</form>
 <ol id="list">
 </ol>
 <div id="board" style="display: none; position: fixed; left: 10px; top: 10px; width: 800px; height: 600px; background-color: yellow">
@@ -47,10 +50,19 @@ $.get('output.csv', function(ret){
   });
 }, 'text');
 
+$('#input').submit(function(e){
+    e.preventDefault();
+    show_data($('input[name=text]').val());
+});
+
 var img_info;
 var img_data;
 $('#list').delegate('li', 'click', function(){
     var id = $(this).attr('data-id');
+    show_data(id);
+});
+
+var show_data = function(id){
     var data = files[id];
     var window_width = $(window).width();
     var window_height = $(window).height();
@@ -83,7 +95,7 @@ $('#list').delegate('li', 'click', function(){
             }
         }, 'json');
     };
-});
+};
 
 $('#table').delegate('td', 'mouseover', function(){
    var x = $(this).data('x');
