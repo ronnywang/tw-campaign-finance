@@ -25,7 +25,7 @@ td {
 
 var files = {};
 
-$.get('output.csv', function(ret){
+$.get('output2.csv', function(ret){
   var lines = ret.split("\n");
   $.each(lines.slice(1), function(i, line){
       if (line === '') {
