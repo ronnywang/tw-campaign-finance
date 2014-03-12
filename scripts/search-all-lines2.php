@@ -357,6 +357,7 @@ class Searcher
             //imageline($gd, 0, $middle_y, $width, $middle_y, $red);
 
             if (!$this->line_groups['verticles']) {
+                file_put_contents('failed', "Failed: 0 " . $url . "\n", FILE_APPEND);
                 continue;
             }
             $cross_points = $this->getCrossPoints($this->line_groups['verticles'], $this->line_groups['horizons']);
