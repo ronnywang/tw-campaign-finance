@@ -288,7 +288,7 @@ class Searcher
                     $theta = pi() * ($angle + 90) / 180;
                     $r = $check_y * sin($theta) + $top_x * cos($theta);
 
-                    $no_point_counter = 0;
+                    $no_point_counter_a = $no_point_counter_b = 0;
                     for ($x_pos = 1; $x_pos < $width; $x_pos ++) {
                         $x = $top_x + floor($x_pos / 2) * (($x_pos % 2) ? -1 : 1);
                         $y = ($r - $x * cos($theta)) / sin($theta);
