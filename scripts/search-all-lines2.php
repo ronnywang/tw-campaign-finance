@@ -43,6 +43,20 @@ class Searcher
 
         return $points;
     }
+    public function scaleCrossPoints($i_j_points, $scale)
+    {
+        $ret = array();
+        foreach ($i_j_points as $i => $j_points) {
+            $ret[$i] = array();
+            foreach ($j_points as $j => $points) {
+                $ret[$i][$j] = array(
+                    floor($points[0] * $scale),
+                    floor($points[1] * $scale),
+                );
+            }
+        }
+        return $ret;
+    }
 
     protected $line_groups = array();
 
@@ -397,11 +411,15 @@ class Searcher
                     imageellipse($gd, $cross_point[0], $cross_point[1], 20, 20, $red);
                 }
             }
+            $cross_points = $this->scaleCrossPoints($cross_points, 1.0 / $scale);
+
             imagepng($gd, 'output.png');
             if (count($cross_points) != 10) {
                 file_put_contents('failed', "Failed: " . count($cross_points) . " " . $url . "\n", FILE_APPEND);
                 continue;
             }
+            $width = imagesx($gd_ori);
+            $height = imagesy($gd_ori);
             fputcsv($fp, array(
                 $id,
                 $file,
