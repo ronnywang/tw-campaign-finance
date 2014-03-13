@@ -176,10 +176,41 @@ class Searcher
             fclose($output);
 
             // 先把圖讀去 GD
-            $gd = $func($tmpfile);
-            // 轉灰階
-            imagefilter($gd, IMG_FILTER_COLORIZE, 0, 0, 255);
-            list($width, $height) = getimagesize($tmpfile);
+            if ($tmpfile == 'tmp.jpg' and !function_exists('imagecreatefromjpeg')) {
+                system('convert tmp.jpg tmp.png');
+                $tmpfile = 'tmp.png';
+                $func = 'imagecreatefrompng';
+            }
+            error_log('convert done');
+            $gd_ori = $func($tmpfile);
+            error_log('open done');
+
+            // 先縮到最大邊 2000 ，加快速度
+            $height = imagesy($gd_ori);
+            $width = imagesx($gd_ori);
+            $scale = 2000.0 / max($width, $height);
+            $gd = imagecreatetruecolor(floor($width * $scale), floor($height * $scale));
+            imagecopyresized($gd, $gd_ori, 0, 0, 0, 0, floor($width * $scale), floor($height * $scale), $width, $height);
+
+            // 轉成只有黑跟白
+            for ($x = imagesx($gd); $x--;) {
+                for ($y = imagesy($gd); $y--;) {
+                    $rgb = imagecolorat($gd, $x, $y);
+                    $colors = imagecolorsforindex($gd, $rgb);
+                    $gray = ($colors['red'] + $colors['green'] + $colors['blue']) / 3;
+                    if ($colors['alpha'] == 127 or $gray < 127) {
+                        imagesetpixel($gd, $x, $y, 0x000000);
+                    } else {
+                        imagesetpixel($gd, $x, $y, 0xFFFFFF);
+                    }
+                }
+            }
+
+
+
+            error_log('filter done');
+            $width = imagesx($gd);
+            $height = imagesy($gd);
 
             $red = imagecolorallocate($gd, 255, 0, 0);
             $green = imagecolorallocate($gd, 0, 255, 0);
