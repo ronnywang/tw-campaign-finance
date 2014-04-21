@@ -129,7 +129,7 @@ class Searcher
         return $i;
     }
 
-    public function main($input, $output)
+    public function main($input, $output, $output_dir)
     {
         if (!file_exists($input)) {
             throw new Exception("沒有輸入檔");
@@ -428,11 +428,11 @@ class Searcher
             $ret->horizons = $this->line_groups['horizons'];
             $ret->verticles = $this->line_groups['verticles'];
             $ret->cross_points = $cross_points;
-            file_put_contents(__DIR__ . '/../outputs2/' . $id . '.json', json_encode($ret));
+            file_put_contents($output_dir . $id . '.json', json_encode($ret));
             $id ++;
         }
     }
 }
 
 $s = new Searcher;
-$s->main(__DIR__ . '/../list.csv', __DIR__ . '/../output2.csv');
+$s->main(__DIR__ . '/../list0421.csv', __DIR__ . '/../output0421.csv', __DIR__ . '/../output0421/');
