@@ -5,6 +5,63 @@
 //
 class Searcher
 {
+    public function fixHorizons()
+    {
+        $horizons= $this->line_groups['horizons'];
+        usort($horizons, function($a, $b) { return $a->r > $b->r ? 1 : -1; });
+
+        $last_horizon = null;
+        $min_delta = null;
+        $count = 1;
+        foreach ($horizons as $horizon) {
+            if (is_null($last_horizon)) {
+                $last_horizon = $horizon;
+                continue;
+            }
+
+            $delta = $horizon->r - $last_horizon->r;
+            if (is_null($min_delta)) {
+                $min_delta = $delta;
+                $c = 1;
+                $last_horizon = $horizon;
+                continue;
+            }
+
+            if (round(max($min_delta, $delta) / min($min_delta, $delta)) > 1) {
+                if ($min_delta > $delta) {
+                    $min_delta = $delta;
+                    $c = 1;
+                }
+                $last_horizon = $horizon;
+                continue;
+            }
+            $last_horizon = $horizon;
+            $min_delta = ($min_delta * $c + $delta) / ($c + 1);
+            $c ++;
+        }
+
+        $output_horizons = array();
+        $last_horizon = null;
+        foreach ($horizons as $horizon) {
+            if (is_null($last_horizon)) {
+                $last_horizon = $horizon;
+                $output_horizons[] = $horizon;
+                continue;
+            }
+
+            $delta = $horizon->r - $last_horizon->r;
+            for ($i = 1; $i < round($delta / $min_delta); $i ++) {
+                $last_horizon = clone $last_horizon;
+                $last_horizon->r += $min_delta;
+                $output_horizons[] = $last_horizon;
+            }
+            $output_horizons[] = $horizon;
+            $last_horizon = $horizon;
+        }
+
+        $this->line_groups['horizons'] = $output_horizons;
+    }
+
     /**
      * 找出所有垂直線和水平線的交點
      * 
@@ -298,7 +355,7 @@ class Searcher
                         foreach (range(2, -2) as $range) {
                             $rgb = imagecolorat($gd, floor($x), floor($y + $range));
                             $colors = imagecolorsforindex($gd, $rgb);
-                            if ($colors['red'] == 0 and $colors['green'] == 255 and $colors['blue'] == 0) {
+                            if ($colors['red'] != 0 and $colors['green'] != 0 and $colors['blue'] != 0) {
                                 if ($x_pos % 2) {
                                     $no_point_counter_a = 0;
                                     $max_xy = array($x, $y);
@@ -359,7 +416,7 @@ class Searcher
                         if ($x < 0 or $x > $width) {
                             break;
                         }
-                        foreach (range(3, 0, -3) as $range) {
+                        foreach (range(3, -3) as $range) {
                             $rgb = imagecolorat($gd, floor($x + $range), floor($y));
                             $colors = imagecolorsforindex($gd, $rgb);
                             if ($colors['red'] == 0 and $colors['green'] == 255 and $colors['blue'] == 0) {
@@ -399,6 +456,9 @@ class Searcher
                 file_put_contents('failed', "Failed: 0 " . $url . "\n", FILE_APPEND);
                 continue;
             }
+
+            // 看看水平線是不是等距
+            $this->fixHorizons();
             $cross_points = $this->getCrossPoints($this->line_groups['verticles'], $this->line_groups['horizons']);
             foreach ($cross_points as $line_cross_points) {
                 foreach ($line_cross_points as $cross_point) {
@@ -410,10 +470,11 @@ class Searcher
             imagepng($gd, 'output.png');
             if (count($cross_points) != 10) {
                 file_put_contents('failed', "Failed: " . count($cross_points) . " " . $url . "\n", FILE_APPEND);
-                continue;
+                error_log('failed');
             }
             $width = imagesx($gd_ori);
             $height = imagesy($gd_ori);
+            imagedestroy($gd_ori);
             fputcsv($fp, array(
                 $id,
                 $file,

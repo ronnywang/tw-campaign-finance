@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>政治獻金</title>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/bootstrap.min.js"></script>
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/css/bootstrap.css">
+<style>
+td {
+    height: 6px;
+    width: 40px;
+}
+</style>
+</head>
+<body>
+<ol id="list">
+</ol>
+<div id="board" style="display: none; position: fixed; left: 10px; top: 10px; width: 800px; height: 600px; background-color: yellow">
+    <table id="table" border="1" style="float: left"></table>
+    <canvas id="img_canvas" width="400" height="300"></canvas>
+    <canvas id="canvas" width="400" height="400" style="position: relative; left: 400"></canvas>
+</div>
+<script>
+
+var files = {};
+
+$.get('output0421.csv', function(ret){
+  var lines = ret.split("\n");
+  $.each(lines.slice(1), function(i, line){
+      if (line === '') {
+          return;
+      }
+      var id = line.split(',')[0];
+      files[id] = {
+          file: line.split(',')[1],
+          page: line.split(',')[2],
+          url: line.split(',')[3],
+          width: line.split(',')[4],
+          height: line.split(',')[5]
+      };
+  });
+  $('#list').empty();
+
+  $.each(files, function(id, data){
+      $('#list').append($('<li></li>').attr('data-id', id).text(data.file + '(' + data.page + ')'));
+  });
+}, 'text');
+
+var img_info;
+var img_data;
+$('#list').delegate('li', 'click', function(){
+    var id = $(this).attr('data-id');
+    var data = files[id];
+    var window_width = $(window).width();
+    var window_height = $(window).height();
+    
+    img_data = new Image;
+    img_data.src = data.url;
+    img_data.onload = function(){
+        $('#img_canvas').css({
+            'background': 'url(' + data.url + ')',
+            'background-size': '400px 300px',
+            'width': '400px',
+            'height': '300px'
+        });
+        $.get('output0421/' +id + '.json', function(ret){
+            img_info = ret;
+            $('#board').show();
+            $('#table').empty();
+
+            for (var i = 0; i < ret.cross_points[0].length - 1; i ++) {
+                var tr_dom = $('<tr></tr>');
+                for (var j = 0; j < ret.cross_points.length - 1; j ++) {
+                    var td_dom = $('<td></td>');
+                    td_dom.data({
+                        'x': j,
+                        'y': i
+                    }).text('');
+                    tr_dom.append(td_dom);
+                }
+                $('#table').append(tr_dom);
+            }
+        }, 'json');
+    };
+});
+
+$('#table').delegate('td', 'mouseover', function(){
+   var x = $(this).data('x');
+   var y = $(this).data('y');
+
+   $('#table td').css('background-color', '');
+   $(this).css('background-color', 'red');
+
+   var lefttop = img_info.cross_points[x][y];
+   var rightdown = img_info.cross_points[x + 1][y + 1];
+   var source_width = parseInt(rightdown[0] - lefttop[0]);
+   var source_height = parseInt(rightdown[1] - lefttop[1]);
+   var target_width = (source_width > source_height) ? 400 : Math.floor(400 * source_width / source_height);
+   var target_height = (source_height > source_width) ? 400 : Math.floor(400 * source_height / source_width);
+
+   var img_context = $('#img_canvas')[0].getContext('2d');
+   img_context.clearRect(0, 0, 400, 300);
+   img_context.beginPath();
+   img_context.strokeStyle = 'red';
+   img_context.rect(
+       Math.floor(lefttop[0] * 400 / img_info.width),
+       Math.floor(lefttop[1] * 300 / img_info.height),
+       Math.floor((rightdown[0] - lefttop[0]) * 400 / img_info.width),
+       Math.floor((rightdown[1] - lefttop[1]) * 300 / img_info.height)
+   );
+   img_context.stroke();
+   $('#canvas')[0].getContext('2d').clearRect(0, 0, 400, 400);
+   $('#canvas')[0].getContext('2d').drawImage(
+       img_data,
+       lefttop[0], // source_x
+       lefttop[1], // source_y
+       source_width, // source_width
+       source_height, // source_height
+       0, // target_x
+       0, // target_y
+       target_width,
+       target_height
+   );
+   console.log(target_width + ' ' + target_height);
+});
+
+$('body').click(function(){
+    $('#board').hide();
+});
+</script>
+</body>
+</html>
