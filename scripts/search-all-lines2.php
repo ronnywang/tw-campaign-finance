@@ -275,8 +275,6 @@ class Searcher
                 }
             }
 
-
-
             error_log('filter done');
             $width = imagesx($gd);
             $height = imagesy($gd);
@@ -285,6 +283,18 @@ class Searcher
             $green = imagecolorallocate($gd, 0, 255, 0);
             $black = imagecolorallocate($gd, 0, 0, 0);
             $white = imagecolorallocate($gd, 255, 255, 255);
+
+            // 如果最上面或是最下面就是黑色，表示可能是影印造成的問題，就把他給濾掉
+            $rgb = imagecolorat($gd, floor($width / 2), 0);
+            $colors = imagecolorsforindex($gd, $rgb);
+            if ($colors['red'] == 0 and $colors['green'] == 0 and $colors['blue'] == 0) {
+                imagefill($gd, floor($width / 2), 0, $white);
+            }
+            $rgb = imagecolorat($gd, floor($width / 2), $heigth - 1);
+            $colors = imagecolorsforindex($gd, $rgb);
+            if ($colors['red'] == 0 and $colors['green'] == 0 and $colors['blue'] == 0) {
+                imagefill($gd, floor($width / 2), $height - 1, $white);
+            }
 
             // 從圖正中間往下畫一條垂直線
 
@@ -496,4 +506,4 @@ class Searcher
 }
 
 $s = new Searcher;
-$s->main(__DIR__ . '/../list0421.csv', __DIR__ . '/../output0421.csv', __DIR__ . '/../output0421/');
+$s->main(__DIR__ . '/../list0423.csv', __DIR__ . '/../output0423.csv', __DIR__ . '/../output0423/');
