@@ -83,6 +83,7 @@ $.get('output0503.csv', function(ret){
 var img_info;
 var img_data;
 $(window).bind('hashchange', function(){
+    $('.pager li').hide();
     var order = parseInt(document.location.hash.split('#')[1]);
     var li_dom = $('#list li').eq(order);
     if (order.toString() === 'NaN' || !$('#list li').eq(order)) {
@@ -113,6 +114,7 @@ $(window).bind('hashchange', function(){
     img_data = new Image;
     img_data.src = data.url;
     img_data.onload = function(){
+        $('.pager li').show();
         $('#img_canvas').css({
             'background': 'url(' + data.url + ')',
             'background-size': '400px 300px',
