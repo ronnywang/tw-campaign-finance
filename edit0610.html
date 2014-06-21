@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>政治獻金</title>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.1.1/bootstrap.min.js"></script>
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.1.1/css/bootstrap.css">
+<style>
+td {
+    height: 6px;
+    width: 40px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<ol id="list">
+</ol>
+<div class="container-fluid" id="board" style="display: none; position: fixed; left: 10px; top: 10px; width: 800px; height: 600px; background-color: yellow">
+    <h3 id="title">標題</h3>
+    <ul class="pager">
+        <li id="pager-prev" class="previous"><a href="#">&larr; Older</a></li>
+        <li id="pager-next" class="next"><a href="#">Newer &rarr;</a></li>
+    </ul>
+    <div class="row">
+        <div class="col-md-3">
+            <h5>水平線</h5>
+            <ol id="ol-horizons">
+            </ol>
+            <form id="add-horizons-form"><input type="text" id="horizons-text" placeholder="新增一條"></form>
+        </div>
+        <div class="col-md-3">
+            <h5>垂直線</h5>
+            <ol id="ol-verticles">
+            </ol>
+            <form id="add-verticles-form"><input type="text" id="verticles-text" placeholder="新增一條"></form>
+        </div>
+        <div class="col-md-6">
+            <canvas id="img_canvas" width="400" height="300"></canvas><br>
+            <textarea class="form-control" id="table-json">這邊放JSON</textarea>
+            <canvas id="canvas" width="400" height="400"></canvas>
+        </div>
+    </div>
+    <div class="row">
+    </div>
+</div>
+</div>
+<script>
+
+var files = {};
+
+$.get('output0610.csv', function(ret){
+  var lines = ret.split("\n");
+  var orders = [];
+  $.each(lines.slice(1), function(i, line){
+      if (line === '') {
+          return;
+      }
+      var id = line.split(',')[0];
+      files[id] = {
+          file: line.split(',')[1],
+          page: line.split(',')[2],
+          url: line.split(',')[3],
+          width: line.split(',')[4],
+          height: line.split(',')[5],
+          revert: line.split(',')[6]
+      };
+      orders.push(id);
+  });
+  $('#list').empty();
+
+  var index = 0;
+  $.each(orders, function(i, id){
+      data = files[id];
+      $('#list').append($('<li></li>').attr('data-id', id).append($('<a></a>').attr('href', '#' + index).text(data.file + '(' + data.page + ')')));
+      index ++;
+  });
+  $(window).trigger('hashchange');
+
+}, 'text');
+
+var img_info;
+var img_data;
+$(window).bind('hashchange', function(){
+    $('.pager li').hide();
+    var order = parseInt(document.location.hash.split('#')[1]);
+    var li_dom = $('#list li').eq(order);
+    if (order.toString() === 'NaN' || !$('#list li').eq(order)) {
+        $('#board').hide();
+        return;
+    }
+    var id = li_dom.attr('data-id');
+
+    var data = files[id];
+    $('#title').text(data.file + '(' + data.page + ') ' + id + '.json');
+    if (!order) {
+        $('#pager-prev').addClass('disabled');
+        $('#pager-prev a').attr('href', '#');
+    } else {
+        $('#pager-prev').removeClass('disabled');
+        $('#pager-prev a').attr('href', '#' + (order - 1));
+    }
+    $('#pager-next a').attr('href', '#' + (order + 1));
+    // preload 下一張
+    if (files[$('#list li').eq(order + 1).attr('data-id')]) {
+        var a = new Image;
+        a.src = files[$('#list li').eq(order + 1).attr('data-id')].url;
+    }
+
+    var window_width = $(window).width();
+    var window_height = $(window).height();
+
+    img_data = new Image;
+    img_data.src = data.url;
+    img_data.onload = function(){
+        $('.pager li').show();
+        $('#img_canvas').css({
+            'background': 'url(' + data.url + ')',
+            'background-size': '400px 300px',
+            'width': '400px',
+            'height': '300px'
+        });
+        if (data.revert) {
+            $('#img_canvas').css({
+                '-webkit-transform': 'rotate(180deg)',
+            });
+        } else {
+            $('#img_canvas').css({
+                '-webkit-transform': '',
+            });
+        }
+        $.get('output0610/' +id + '.json', function(ret){
+            ret.horizons = ret.horizons.map(function(a){
+                if (a.theta < 0) {
+                    a.theta += Math.PI;
+                }
+                return a;
+            });
+            ret.verticles = ret.verticles.map(function(a){
+                if (a.theta > Math.PI) {
+                    a.theta -= Math.PI;
+                }
+                return a;
+            });
+            img_info = ret;
+
+            $('#board').show();
+            $('#table-json').val(JSON.stringify(ret));
+            drawLineFromJSON();
+        }, 'json');
+    };
+
+    var tranformPoint = function(x, y){
+        var ret = JSON.parse($('#table-json').val());
+        var x2, y2;
+        x2 = Math.floor(x * 400.0 / 2000);
+        y2 = Math.floor(y * 300.0 / (2000 * ret.height / ret.width));
+        return [x2, y2];
+    };
+
+    drawLineFromJSON = function(){
+        var img_context = $('#img_canvas')[0].getContext('2d');
+        img_context.clearRect(0, 0, 400, 300);
+        var ol = $('#ol-horizons');
+        var ret = JSON.parse($('#table-json').val());
+        var li_dom;
+        ol.empty();
+        ol.data('theta', ret.horizons[0].theta);
+        for (var i = 0; i < ret.horizons.length; i ++) {
+            li_dom = $('<li></li>');
+
+            li_dom.append(
+                $('<span></span>').text(ret.horizons[i].r).addClass('r')
+            ).append(
+                $('<a></a>').attr({href:'x'}).addClass('del').text('del')
+            );
+            ol.append(li_dom);
+            img_context.beginPath();
+            img_context.strokeStyle = 'red';
+            img_context.moveTo(tranformPoint(ret.verticles[0].r, 0)[0], tranformPoint(0, ret.horizons[i].r)[1]);
+            img_context.lineTo(tranformPoint(ret.verticles[ret.verticles.length - 1].r, 0)[0], tranformPoint(0, ret.horizons[i].r)[1]);
+            img_context.stroke();
+        }
+
+        ol = $('#ol-verticles');
+        ol.empty();
+        ol.data('theta', ret.verticles[0].theta);
+        for (i = 0; i < ret.verticles.length; i ++) {
+            li_dom = $('<li></li>');
+
+            li_dom.append(
+                $('<span></span>').text(ret.verticles[i].r).addClass('r')
+            ).append(
+                $('<a></a>').attr({href:'x'}).addClass('del').text('del')
+            );
+            ol.append(li_dom);
+            img_context.beginPath();
+            img_context.strokeStyle = 'blue';
+            img_context.moveTo(tranformPoint(ret.verticles[i].r, 0)[0], tranformPoint(0, ret.horizons[0].r)[1]);
+            img_context.lineTo(tranformPoint(ret.verticles[i].r, 0)[0], tranformPoint(0, ret.horizons[ret.horizons.length - 1].r)[1]);
+            img_context.stroke();
+        }
+    };
+});
+
+var countCrossPoints = function(){
+    var points = [];
+
+    var ret = JSON.parse($('#table-json').val());
+    for (var i = 0; i < ret.verticles.length; i ++) {
+        points[i] = [];
+
+        for (var j = 0; j < ret.horizons.length; j ++) {
+            a1 = Math.sin(ret.verticles[i].theta) / Math.cos(ret.verticles[i].theta);
+            b1 = ret.verticles[i].r / Math.cos(ret.verticles[i].theta);
+
+            a2 = Math.sin(ret.horizons[j].theta) / Math.cos(ret.horizons[j].theta);
+            b2 = ret.horizons[j].r / Math.cos(ret.horizons[j].theta);
+
+            y = Math.floor((b1 - b2) / (a1 - a2));
+            x = Math.floor(b1 - a1 * y);
+
+            points[i][j] = [
+                Math.floor(x * Math.max(ret.width, ret.height) / 2000),
+                Math.floor(y * Math.max(ret.width, ret.height) / 2000)
+            ];
+        }
+    }
+    ret.cross_points = points;
+    $('#table-json').val(JSON.stringify(ret));
+};
+
+$('#add-horizons-form').submit(function(e){
+    e.preventDefault();
+
+    var ret = JSON.parse($('#table-json').val());
+    var input = parseFloat($('#horizons-text').val());
+    ret.horizons.push({
+        r: input,
+        theta: ret.horizons[0].theta
+    });
+    ret.horizons = ret.horizons.sort(function(a, b){ return a.r > b.r ? 1 : -1; });
+    $('#table-json').val(JSON.stringify(ret));
+    countCrossPoints();
+    drawLineFromJSON();
+});
+$('#add-verticles-form').submit(function(e){
+    e.preventDefault();
+
+    var ret = JSON.parse($('#table-json').val());
+    var input = parseFloat($('#verticles-text').val());
+    ret.verticles.push({
+        r: input,
+        theta: ret.verticles[0].theta
+    });
+    ret.verticles = ret.verticles.sort(function(a, b){ return a.r > b.r ? 1 : -1; });
+    $('#table-json').val(JSON.stringify(ret));
+    countCrossPoints();
+    drawLineFromJSON();
+});
+
+$('#ol-horizons').delegate('li a.del', 'click', function(e){
+    e.preventDefault();
+    var ret = JSON.parse($('#table-json').val());
+    ret.horizons.splice($('#ol-horizons li a.del').index($(this)), 1);
+    $('#table-json').val(JSON.stringify(ret));
+    countCrossPoints();
+    drawLineFromJSON();
+});
+$('#ol-verticles').delegate('li a.del', 'click', function(e){
+    e.preventDefault();
+    var ret = JSON.parse($('#table-json').val());
+    ret.verticles.splice($('#ol-verticles li a.del').index($(this)), 1);
+    $('#table-json').val(JSON.stringify(ret));
+    countCrossPoints();
+    drawLineFromJSON();
+});
+
+var tmp;
+$('body').click(function(e){
+    if ($.contains($('#board')[0], e.target)) {
+        return;
+    };
+    if ($(e.target).is('.del')) {
+        return;
+    }
+    document.location.hash = '';
+});
+</script>
+</body>
+</html>
