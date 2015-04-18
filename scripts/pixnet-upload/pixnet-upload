@@ -1,0 +1,39 @@
+#!/usr/bin/env php
+<?php
+
+include(__DIR__ . '/PixAPI.php');
+if (!file_exists(getenv('HOME') . '/pixnet_config.php')) {
+    throw new Exception("Need ~/pixnet_config.php with PIXNET_CONSUMER_KEY and PIXNET_CONSUMER_SECRET and PIXNET_ACCESS_KEY and PIXNET_ACCESS_SECRET");
+}
+include(getenv('HOME') . '/pixnet_config.php');
+if (!getenv('PIXNET_CONSUMER_KEY') or !getenv('PIXNET_CONSUMER_SECRET') or !getenv('PIXNET_ACCESS_KEY') or !getenv('PIXNET_ACCESS_SECRET')) {
+    throw new Exception("Need ~/pixnet_config.php with PIXNET_CONSUMER_KEY and PIXNET_CONSUMER_SECRET");
+}
+
+class Uploader
+{
+    public function main()
+    {
+        $api = new PixAPI(getenv('PIXNET_CONSUMER_KEY'), getenv('PIXNET_CONSUMER_SECRET'));
+        $api->setToken(getenv('PIXNET_ACCESS_KEY'), getenv('PIXNET_ACCESS_SECRET'));
+        $output = fopen('php://output', 'w');
+
+        $files = $_SERVER['argv'];
+        array_shift($files); // remove command name
+        if (!$set_id = array_shift($files)) {
+            throw new Exception("Usage: uploader [set-id] [file ...]");
+        }
+        foreach ($files as $file) {
+            $ret = $api->album_add_element($set_id, $file, $file, $file);
+            fputcsv($output, array(
+                $file,
+                $ret->element->original,
+                $ret->element->url,
+            ));
+        }
+        return;
+    }
+}
+
+$d = new Uploader;
+$d->main();
